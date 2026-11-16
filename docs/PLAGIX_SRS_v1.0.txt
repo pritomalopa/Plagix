@@ -1,0 +1,651 @@
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 1
+PLAGIX
+Academic Answer Evaluation & Integrity Platform
+Software Requirements Specification (SRS)
+Version 1.0  |  16 November 2026  |  Status: Draft baseline
+PRODUCT POSITIONING  PLAGIX is a standalone SaaS utility for evaluating assignment submissions created elsewhere. 
+Teachers provide the question and upload student answers as a ZIP or individual files. PLAGIX does not manage courses, 
+classes, attendance, teaching content, or assignment distribution.
+Detect similarities. Check relevance. Support fair evaluation.
+Prepared as the product and engineering baseline for implementation with OpenCode / Claude Code.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 2
+Document Control
+Field Value
+Product PLAGIX
+Document Software Requirements Specification (SRS)
+Version 1.0
+Date 16 November 2026
+Status Draft baseline for implementation planning
+Primary users Teachers / evaluators; platform administrator
+Product type Standalone, multi-tenant SaaS utility
+Initial submission scope PDF, DOCX, TXT; ZIP bundle; optional source-code files in code- analysis phase
+Revision History
+Version Date Change
+0.1 16 Nov 2026 Initial requirements baseline drafted from the PLAGIX concept.
+1.0 16 Nov 2026
+Defined standalone upload workflow, 
+relevance-first evaluation, comparison 
+rules, fairness safeguards, architecture and 
+acceptance criteria.
+How to Use This SRS
+This document is the source of truth for product scope and expected behavior. Build in phases. Requirements marked MVP 
+should be implemented and tested before optional advanced modules. Where a decision is unresolved, keep it configurable 
+or record it as an open decision rather than silently hard-coding an assumption.
+IMPORTANT  The document defines intended requirements, not claims that the software already exists or that a detector can 
+prove misconduct.
+Contents
+ 1. Introduction and Scope
+ 2. Product Overview and Actors
+ 3. End-to-End Workflow
+ 4. Functional Requirements
+ 5. Evaluation Rules and Fairness
+ 6. Algorithms and Technical Approach
+ 7. Data Requirements
+ 8. System Architecture and Technology Stack
+ 9. Non-Functional Requirements
+ 10. Security, Privacy and Governance
+ 11. Reporting and User Experience
+ 12. Acceptance Criteria and Test Plan
+ 13. Delivery Roadmap
+ 14. Assumptions, Constraints and Open Decisions
+ 15. Glossary
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 3
+1. Introduction and Scope
+1.1 Purpose
+PLAGIX helps a teacher evaluate a batch of student responses to an assignment question. It first checks whether each 
+answer addresses the supplied question, then compares submissions for overlapping or similar content, optionally analyzes 
+source code and AI-writing signals, and produces an explainable evaluation report with provisional marks for teacher review.
+1.2 Product Vision
+Provide a reliable, explainable and fair evaluation assistant that reduces repetitive checking work while keeping the teacher in 
+control of academic decisions.
+1.3 In Scope
+ Teacher account and secure sign-in; a teacher can create a standalone evaluation job without creating a course.
+ Question input, optional sub-questions, maximum marks, rubric, reference answer, expected concepts and teacher 
+instructions.
+ Bulk ZIP upload and individual document upload in the same evaluation job.
+ File validation, safe archive extraction, text extraction, optional OCR for scanned PDFs, and upload-level error reporting.
+ Answer relevance analysis before peer-to-peer plagiarism comparison.
+ Within-batch comparisons across all accepted submissions, with one stored result per unordered pair.
+ Explainable matching evidence, similarity categories, teacher review, configurable grading suggestions and exports.
+ Optional later modules for source-code similarity and cautious AI-writing indicators.
+ Multi-tenant SaaS foundations, secure storage, audit trail and deployment automation.
+1.4 Out of Scope for the Initial Product
+ Course, class, student-enrollment, attendance, timetable or learning-management features.
+ Hosting lessons, distributing assignments or replacing Google Classroom / Moodle / email / existing LMS tools.
+ Requiring every student to register for PLAGIX in the MVP. Teachers may upload submissions and map student 
+names/IDs.
+ Public web-wide plagiarism crawling or checking against paid external academic databases in the MVP.
+ Automatic disciplinary decisions, automatic accusations, or automatic zero marks based only on similarity or AI-detection 
+signals.
+ Guaranteed identification of AI authorship. No available detector should be represented as definitive proof.
+1.5 Terminology
+Term Meaning
+Evaluation job / batch One teacher-created evaluation containing one question or set of questions and a group of student submissions.
+Submission One student’s uploaded answer document or code file(s).
+Pairwise comparison A comparison between two different submissions in the same evaluation batch.
+Similarity A measured overlap or resemblance signal; not, by itself, a plagiarism verdict.
+Relevance How directly the response addresses the supplied question and criteria.
+Provisional marks A suggested score that the teacher can inspect, edit and approve.
+Matched passage A specific text/code fragment identified as similar between submissions.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 4
+2. Product Overview and Actors
+2.1 Product Context
+PLAGIX sits after the teacher has already distributed an assignment elsewhere and collected the answers. The teacher 
+opens PLAGIX, creates an evaluation job, supplies the question and evaluation context, uploads files, reviews the analysis 
+and exports or publishes the checked results outside PLAGIX as needed.
+2.2 Actors
+Actor Responsibilities
+Teacher / Evaluator
+Creates evaluation jobs, provides questions/rubrics, uploads 
+answer files, reviews flagged evidence, adjusts marks and exports 
+reports.
+Platform Administrator
+Manages platform configuration, tenant-level support, service 
+health, abuse controls and operational settings. Must not casually 
+inspect tenant submissions.
+Student (indirect in MVP)
+Is represented by submission metadata. May receive a teacher-
+generated report or feedback outside PLAGIX. A student portal is 
+not required in the MVP.
+2.3 Core Design Principles
+ Standalone utility: no course setup is required.
+ Explainability: show why a submission was flagged and which passages contributed.
+ Human oversight: teacher reviews provisional outcomes and makes final decisions.
+ Separation of signals: relevance, correctness, textual similarity, code similarity and AI-writing indicators remain distinct.
+ Privacy by default: collect the minimum personal data needed and provide deletion/retention controls.
+ Batch reliability: large uploads run asynchronously with clear progress and per-file status.
+3. End-to-End Workflow
+Stage System behavior
+1. Create evaluation Teacher enters a title, question/prompt, optional sub-questions, total marks, due/context notes and language.
+2. Add evaluation guidance Teacher may provide a rubric, expected concepts, reference answer, citation rules, prohibited collaboration rules and per-criterion marks.
+3. Upload submissions Teacher uploads one ZIP containing many files, selects multiple individual files, or combines both methods.
+4. Validate and extract System validates file types/sizes, safely extracts ZIP contents, detects duplicates/corrupt files and creates one submission record per student.
+5. Extract answer content System extracts text from digital PDF/DOCX/TXT. Scanned PDFs enter OCR with confidence and page-level extraction status.
+6. Check answer relevance FIRST
+Each answer is evaluated against the teacher’s question and optional 
+rubric/reference context. Results include relevant/partially relevant/off-
+topic/uncertain status with evidence.
+7. Compare submissions
+System compares every unique pair within the batch. Exact, lexical and 
+semantic signals are calculated; matching passages and source 
+submission IDs are retained.
+8. Optional specialist checks
+Where enabled, source code is compared with language-aware 
+techniques. AI-writing analysis may provide a cautious review signal 
+only.
+9. Generate provisional evaluation
+Rubric/relevance analysis proposes content marks. Similarity and AI 
+signals are shown separately as review evidence, not silently merged 
+into a punitive score.
+10. Teacher review and export Teacher reviews questionable cases, edits/approves marks, records decisions and exports class-level and individual reports.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 5
+WORKFLOW RULE  Question relevance is evaluated before peer similarity analysis. File validation and text extraction must 
+complete before either analysis stage can run.
+4. Functional Requirements
+Priority labels: MUST = required for the first usable release; SHOULD = important, may follow the MVP; COULD = 
+optional/future capability.
+ID Requirement Priority Description
+FR-01 Evaluation creation MUST
+Teacher can create an evaluation 
+job with title, question text, language 
+and maximum marks.
+FR-02 Question context MUST
+Teacher can add multiple 
+questions/sub-questions, optional 
+rubric criteria, reference answer, 
+expected concepts, instructions and 
+citation policy.
+FR-03 No course dependency MUST
+An evaluation can be created and 
+run without creating a course, class, 
+roster or student account.
+FR-04 ZIP upload MUST
+Teacher can upload a ZIP archive. 
+System safely extracts supported 
+files and reports each extracted file 
+status.
+FR-05 Individual upload MUST
+Teacher can upload multiple 
+individual documents. Individual and 
+ZIP uploads can coexist in one 
+evaluation job.
+FR-06 File validation MUST
+System validates file 
+signature/MIME, extension, size and 
+archive contents; rejects 
+unsupported, encrypted, corrupt or 
+unsafe files with an understandable 
+reason.
+FR-07 Student mapping MUST
+System derives a provisional student 
+label from the filename/path where 
+possible; teacher can edit labels or 
+upload a CSV mapping. Ambiguous 
+identities are marked for review.
+FR-08 Duplicate detection MUST
+System identifies identical file 
+hashes and warns before treating 
+duplicate files as separate student 
+submissions.
+FR-09 Text extraction MUST
+Extract selectable text from PDF, 
+DOCX and TXT. Preserve 
+page/paragraph offsets needed for 
+evidence highlighting.
+FR-10 OCR SHOULD
+Scanned PDFs can be OCR-
+processed. OCR confidence and 
+pages with poor extraction are 
+visible; uncertain OCR must not 
+silently produce a high-confidence 
+accusation.
+FR-11 Processing queue MUST
+Long-running extraction and 
+analysis run in background workers. 
+UI shows queued, processing, 
+completed, partially failed and failed 
+states.
+FR-12 Relevance analysis MUST
+For every answer, evaluate 
+alignment with the relevant 
+question/sub-question before peer 
+similarity analysis.
+FR-13 Relevance evidence MUST
+Show a relevance category, score or 
+band, short explanation and answer 
+excerpts supporting the result. Mark 
+low-confidence outcomes for 
+teacher review.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 6
+ID Requirement Priority Description
+FR-14 Batch pairwise comparison MUST
+Compare each accepted submission 
+with every other accepted 
+submission in the same batch, 
+excluding self-comparisons.
+FR-15 Unique pair storage MUST
+Store one canonical record per 
+unordered pair; A-B and B-A must 
+resolve to the same result.
+FR-16 Similarity dimensions MUST
+Keep exact/near-exact, lexical and 
+semantic similarity signals distinct; 
+do not present one opaque 
+percentage without explanation.
+FR-17 Matched passage evidence MUST
+Show matched excerpts, source 
+submission, page/position where 
+available, and match type.
+FR-18 Common-content handling MUST
+Allow the system to 
+suppress/discount question text, 
+provided templates, common 
+phrases and configured boilerplate 
+from plagiarism evidence.
+FR-19 Citation/reference handling SHOULD
+Recognize reference sections and 
+citation patterns where possible; 
+show copied cited content 
+separately rather than blindly 
+treating all overlap equally.
+FR-20 Code analysis SHOULD
+Allow code files in explicitly 
+supported languages to be 
+compared separately from prose, 
+with normalized tokens and 
+structural signals.
+FR-21 AI-writing signal COULD
+Optional experimental module may 
+provide a cautious signal with 
+limitations and model/version 
+metadata. It must not claim 
+certainty.
+FR-22 Grading policy MUST
+Teacher can configure a rubric and 
+marking policy. Similarity thresholds 
+may create review flags or draft 
+deductions only when explicitly 
+enabled.
+FR-23 Teacher override MUST
+Teacher can edit proposed marks, 
+dismiss flags, add reasons and 
+approve final results.
+FR-24 Reports MUST
+Generate batch summary and 
+individual submission reports in PDF 
+and CSV export formats.
+FR-25 Audit log MUST
+Record key actions such as 
+evaluation creation, upload, analysis 
+configuration, grade changes, 
+review decisions and deletion.
+FR-26 Delete data MUST
+Teacher can delete an evaluation 
+and associated files/results subject 
+to retention policy and audit 
+requirements.
+FR-27 Progress and retry MUST
+Failed files/jobs can be inspected 
+and retried without duplicating 
+completed pairwise results.
+FR-28 Multi-tenant isolation MUST
+Teacher data and evaluation jobs 
+are isolated by tenant/user 
+authorization at API and database 
+layers.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 7
+5. Evaluation Rules and Fairness
+5.1 Evaluation Pipeline Separation
+Dimension Question answered Output
+Relevance Does the response address the given question? Relevant / partially relevant / off-topic / uncertain, with evidence.
+Content quality (rubric-based) Does the answer meet teacher-defined criteria? Criterion-level draft marks and rationale.
+Text similarity How much meaningful text overlap exists with another answer? Pairwise lexical/exact/semantic signals and matched passages.
+Code similarity How structurally or lexically similar is code? Token/AST evidence and matched code regions.
+AI-writing indicator Does an optional detector raise a pattern- based review signal? Cautious signal with limitations; never proof.
+Final grade What mark should the student receive? Teacher-approved final mark.
+5.2 Question Relevance
+ The question, sub-question and teacher instructions are the primary reference. A rubric/reference answer strengthens 
+evaluation but is optional.
+ Use semantic meaning, not keyword overlap alone. Synonyms, paraphrases and reasonable alternative explanations 
+must remain eligible as relevant.
+ Classify each response as Relevant, Partially Relevant, Off-topic or Uncertain. A numeric score may accompany the 
+category but must show its confidence/limitations.
+ Show supporting answer spans and a concise explanation. The teacher must be able to correct a relevance 
+classification.
+ Relevance is not the same as factual correctness. Without a rubric/reference answer or a fact-checking source, PLAGIX 
+must not claim that it has verified every factual statement.
+ For multilingual answers (Bangla and English initially targeted), use language-aware or multilingual models and mark 
+unsupported/low-confidence language cases for manual review.
+5.3 Pairwise Similarity Rules
+For N accepted submissions, compare every unique unordered pair exactly once:
+PAIR COUNT  Number of comparisons = N × (N - 1) / 2. For 100 submissions, that is 4,950 unique comparisons, not 9,900 
+directional comparisons.
+ Never compare a submission with itself.
+ Canonicalize pair IDs so submission_a_id is always less than submission_b_id. Enforce a database unique constraint on 
+(evaluation_id, submission_a_id, submission_b_id).
+ Similarity(A, B) and Similarity(B, A) must return the same stored result. Directional views may show which passage 
+belongs to which student, but the underlying pair score is symmetric.
+ Compare within the same evaluation by default. Cross-batch historical comparison is a separate, consent- and retention-
+controlled future feature.
+ Do not calculate an average across all other students as the sole student-level plagiarism score. Show strongest credible 
+match, matched-content coverage, all relevant peers and passage evidence.
+ Common assignment wording, quoted source text, templates, standard definitions and reference lists should be 
+excluded, discounted or clearly categorized where possible.
+ An overlap percentage is a similarity measure, not a finding of intent or misconduct.
+5.4 Fair Grading Policy
+ If a rubric is supplied, draft marks should be calculated criterion by criterion, with evidence and rationale.
+ If no rubric/reference answer is supplied, the system may estimate relevance and offer a low-confidence provisional 
+score, but must clearly state that content correctness cannot be reliably assessed from the question alone.
+ Plagiarism/similarity must be shown as a separate integrity signal. It must not silently reduce content marks.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 8
+ Teacher may configure review thresholds (for example, flag high similarity) and may configure an explicit penalty policy. 
+Any penalty must be visible, explainable and confirmed by the teacher.
+ AI-writing likelihood must never be used by itself to deduct marks, label a student as dishonest or trigger disciplinary 
+action.
+ Final marks are teacher-approved. Record original suggested marks, teacher edits, reasons and final marks in the audit 
+trail.
+ Where an assessment is disputed, teacher can record a review/appeal outcome even if the student communicates 
+outside PLAGIX. A full student portal is not an MVP dependency.
+5.5 Recommended Result Presentation
+Result field Display behavior
+Question relevance Category + optional score band + rationale + evidence excerpt.
+Peer similarity Highest credible pair match, other matched peers, exact/lexical/semantic dimensions and passage coverage.
+AI-writing signal Experimental / uncertain label, method/version and caution text; hidden by default until validated.
+Suggested marks Rubric criterion breakdown, confidence/limitations, and explanation.
+Teacher decision Editable final marks, review status, override reason and approval timestamp.
+6. Algorithms and Technical Approach
+6.1 Text Processing
+Technique Role in PLAGIX Use / caveat
+Unicode normalization + tokenization Normalize PDF/DOCX/TXT content for comparison, including Bangla Unicode handling. Retain original text and offsets; use normalized copies only for analysis.
+N-gram / shingling Represent contiguous word or character sequences. Useful for near-copy detection; tune for short answers and language.
+Rabin-Karp rolling hash Fast fingerprints for candidate matching of text windows. A practical DSA component; hash collisions must be verified against actual content.
+Winnowing Select representative fingerprints to find copied passages. Useful for locating shared fragments while reducing comparison cost.
+TF-IDF + cosine similarity Measure lexical similarity based on weighted terms. Explainable baseline; can miss paraphrases and semantic equivalence.
+Sentence embeddings + cosine similarity Measure semantic similarity between sentences/paragraphs. Use a multilingual-capable model for Bangla/English; semantic similarity is not proof of copying.
+MinHash + LSH Find likely similar candidates efficiently for larger datasets. Optimization for scale; verify candidates with stronger exact/lexical/semantic comparison.
+KMP (optional exact-pattern utility) Find exact known substrings in text. Optional educational/DSA component, not the primary whole-document plagiarism engine.
+6.2 Pairwise Comparison Design
+For a batch of extracted submissions, assign stable internal submission IDs and process pairs using i < j. For each pair, 
+calculate the configured comparison dimensions and save the evidence. Candidate retrieval may reduce expensive semantic 
+work later, but the MVP comparison report should make the coverage of comparisons explicit.
+Example pseudocode:
+for i in range(n):
+    for j in range(i + 1, n):
+        result = compare(submissions[i], submissions[j])
+        save_canonical_pair(i, j, result)
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 9
+6.3 Code Similarity (Optional Phase)
+ Language-aware lexing/tokenization for supported languages (initial candidates: Python, C/C++, Java and 
+JavaScript/TypeScript).
+ Normalize identifiers and literals in a secondary representation to detect renamed variables without losing the original 
+source.
+ Compare token n-grams or Winnowing fingerprints for copied fragments.
+ Parse code into ASTs where a reliable parser is available; compare structural patterns/subtrees as an additional signal.
+ Show matching code spans and the method used. Shared starter code, library boilerplate and trivial solutions require 
+special handling.
+ Code similarity is a review signal. Common beginner solutions may naturally resemble one another.
+6.4 AI-Writing Analysis (Experimental)
+AI-authorship detection is intrinsically uncertain and changes as writing models evolve. PLAGIX may later test validated third-
+party or open-source detectors, but must report this as an experimental indicator, preserve model/version metadata, and 
+evaluate false-positive rates on representative Bangla/English student writing. Do not call the output a verified probability 
+unless the model has been calibrated for that interpretation. No automatic penalty or accusation is permitted.
+7. Data Requirements
+7.1 Core Data Entities
+Entity / table Key purpose and example fields
+users Teacher/admin identity, login email, status, created_at.
+tenants / workspaces Tenant boundary, name, plan/configuration; a teacher may initially own one workspace.
+evaluations Tenant, owner, title, question set, language, total marks, settings, status.
+questions Evaluation ID, prompt, sub-question order, instructions.
+rubric_criteria Question/evaluation ID, criterion, description, max points, weight, expected evidence.
+submissions Evaluation ID, student label/ID, original filename, file hash, storage key, extraction status, language.
+submission_chunks Submission ID, page/paragraph/offset, original text, normalized text, embedding reference if enabled.
+relevance_results Submission ID, question ID, category, score/band, confidence, rationale, evidence, model/prompt version.
+comparisons Evaluation ID, canonical submission_a_id / submission_b_id, exact/lexical/semantic metrics, status.
+matched_passages Comparison ID, both text offsets/pages, match type, similarity/evidence metadata.
+code_analysis_results Submission/pair ID, language, token/AST metrics, matched spans, parser/version.
+grading_results Submission ID, criterion scores, suggested total, teacher final score, status, override reason.
+review_events Review flag, reviewer, action, comment, timestamp.
+audit_logs Actor, tenant, action, target, timestamp, request metadata.
+processing_jobs Evaluation/file job, queue state, retry count, error details, progress.
+7.2 Data Integrity Rules
+ Use foreign keys and tenant-aware authorization to prevent cross-tenant access.
+ Use unique constraints for canonical submission pairs and file hashes within the intended scope.
+ Store original file metadata and secure object-storage keys; do not put large binary files directly into ordinary relational 
+rows.
+ Store algorithm/model version, parameters and prompt version for reproducibility.
+ Preserve original extracted text and offsets alongside normalized analysis text so evidence can be traced back to the 
+uploaded document.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 10
+ Deletion must remove or schedule removal of stored files, extracted text, embeddings and derived results according to 
+policy; keep only minimal audit tombstones where legally/operationally required.
+8. System Architecture and Technology Stack
+8.1 Recommended Architecture
+Layer Recommended technology Responsibilities
+Web frontend Next.js + TypeScript, Tailwind CSS, shadcn/ui Teacher workspace, evaluation setup, uploads, progress, review dashboard and reports.
+Backend API Python + FastAPI + Pydantic Authentication integration, evaluation APIs, validation, orchestration and permissions.
+Relational database PostgreSQL + SQLAlchemy + Alembic Tenant/user/evaluation/submission/result/grade/ audit data.
+Vector capability pgvector (optional in MVP) Embedding storage and semantic retrieval when needed.
+Background jobs Redis + Celery ZIP extraction, text extraction, OCR, embeddings, pairwise comparisons and report generation.
+Document processing PyMuPDF, python-docx, standard text parsers; OCR engine later PDF/DOCX/TXT extraction, pages and offsets.
+NLP scikit-learn, sentence-transformers, model/provider abstraction TF-IDF, embeddings and question relevance support.
+Object storage S3-compatible storage such as Cloudflare R2 Original submissions, generated reports and temporary artifacts.
+Packaging / CI Docker, Docker Compose, GitHub Actions Reproducible local setup, tests, builds and deployment checks.
+8.2 Logical Components
+ Frontend: create evaluation, upload, job progress, result inspection and review.
+ API: validate requests, authorize tenant access, persist metadata and enqueue jobs.
+ Ingestion worker: inspect ZIPs, reject unsafe entries, extract supported files and create submissions.
+ Document worker: parse digital text and optionally OCR scanned pages; retain offsets and extraction confidence.
+ Relevance service: evaluate answer alignment against questions and optional rubric context.
+ Comparison engine: normalize text, fingerprint, compare unique pairs, locate matched passages and save results.
+ Grading service: create rubric-based draft marks and keep integrity flags separate.
+ Reporting service: generate PDF/CSV reports from reviewed results.
+8.3 Deployment Approach
+Use a Dockerized API and worker deployment, managed PostgreSQL, managed Redis and object storage. A Next.js frontend 
+may be deployed separately. Vercel, Render/Railway/Fly, Neon/Supabase PostgreSQL, Upstash Redis and Cloudflare R2 
+are candidate services, not locked requirements. Select providers based on current free-tier limits, region, data protection, 
+reliability and cost at deployment time.
+8.4 Environment Separation
+ Local development: Docker Compose for API, database, Redis and worker; frontend runs locally.
+ Staging: isolated database, object storage bucket and test credentials.
+ Production: separate secrets, restricted service accounts, backups, monitoring and retention policy.
+ No uploaded student submissions, API keys or .env files may be committed to Git.
+9. Non-Functional Requirements
+ID Requirement
+NFR-01 Performance
+The MVP should support a baseline batch of 100 submissions and 
+4,950 unique pairs. Use background jobs and progress reporting; 
+establish measured timing targets using representative files before 
+public launch.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 11
+ID Requirement
+NFR-02 Scalability Workers must be horizontally scalable. Queue and per-job progress must not depend on a single web request remaining open.
+NFR-03 Reliability Jobs should be idempotent where practical. Retrying a failed task must not create duplicate pair records or duplicate grades.
+NFR-04 Usability A teacher should be able to create a batch and upload files without configuring a course or LMS integration.
+NFR-05 Explainability Every relevance, similarity and grading flag must show the method/category and supporting evidence or a clear limitation.
+NFR-06 Accessibility Core workflows should support keyboard navigation, readable contrast, clear status text and responsive layout.
+NFR-07 Maintainability Separate extraction, relevance, comparison, grading, storage and reporting modules behind clear interfaces.
+NFR-08 Observability Record structured logs, job states, error codes and operational metrics without logging full student answer contents by default.
+NFR-09 Portability Docker-based services and environment variables should permit migration between hosting providers.
+NFR-10 Cost control Allow AI/embedding features to be enabled per evaluation or plan; provide usage visibility and avoid unnecessary repeated inference.
+10. Security, Privacy and Governance
+ Authentication: secure password/session or trusted identity-provider integration; protect account recovery and session 
+lifecycle.
+ Authorization: enforce tenant and owner checks on every API operation and object-storage access. Never rely only on 
+frontend hiding.
+ Upload safety: enforce file count/size limits; validate real file signatures; defend against ZIP bombs, path traversal, 
+archive symlinks, malformed PDFs and oversized decompression.
+ Isolation: parse untrusted documents in restricted worker processes/containers with time, memory and filesystem limits.
+ Malware scanning: integrate a scanning step where feasible before processing or serving uploaded content.
+ Secrets: store API keys and database credentials in environment/secret management; never in Git, browser bundles or 
+logs.
+ Encryption: use HTTPS in transit and provider-managed encryption at rest; consider application-level encryption for 
+sensitive identifiers.
+ Data minimization: allow anonymous labels or pseudonymous student IDs. Avoid collecting unnecessary student contact 
+details.
+ Retention: define tenant-configurable retention periods and a clear delete workflow for originals, extracted text, 
+embeddings and reports.
+ Audit: log file access, report exports, grade changes, permission changes and deletion requests.
+ AI governance: disclose when external AI services process content, identify provider/model where applicable, and 
+provide a way to disable those features.
+ No training assumption: do not claim that external model providers never retain or train on data unless verified in the 
+selected provider’s current terms and configuration.
+LAUNCH GATE  Before accepting real student work, publish clear privacy/retention terms, verify provider data handling, test 
+tenant isolation and secure upload handling, and define an incident response process.
+11. Reporting and User Experience
+11.1 Main Screens
+Screen Key contents
+Sign in Teacher sign-in, password reset and account settings.
+Evaluations dashboard Recent evaluation jobs, processing status, totals, failures and quick create.
+Create evaluation Question, sub-questions, rubric, reference context, total marks and settings.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 12
+Screen Key contents
+Upload submissions ZIP dropzone, multi-file picker, optional CSV mapping, supported file list, file validation summary.
+Processing view Extraction progress, completed/failed files, relevance progress, comparison count and retry actions.
+Evaluation results Submission list, relevance status, similarity risk, suggested marks, review state and filters.
+Submission detail Answer preview, question relevance evidence, matched peer passages, rubric breakdown, teacher notes and final mark.
+Pair comparison Side-by-side answer excerpts, highlighted overlaps and exact/lexical/semantic dimensions.
+Reports and settings PDF/CSV export, retention setting, grading thresholds and algorithm configuration.
+11.2 Batch Summary Metrics
+ Total files received / accepted / rejected / processed.
+ Unique pair comparisons completed and failed.
+ Relevant / partially relevant / off-topic / uncertain answer counts.
+ High-similarity review flags and the strongest matched pairs.
+ Suggested marks distribution and teacher-approved marks distribution.
+ OCR failures, low-confidence extractions and language/model limitations.
+11.3 Individual Report
+An individual report should include submission identity label, file name, question relevance result, answer evidence, rubric 
+criterion scores, matched peers and passages, separate integrity indicators, provisional/final marks, teacher comments and a 
+disclaimer explaining that similarity is not automatically proof of plagiarism.
+12. Acceptance Criteria and Test Plan
+ID Acceptance criterion
+AC-01 ZIP ingestion
+Given a valid ZIP with supported PDFs/DOCX/TXT files, when 
+uploaded, each supported file is extracted and listed with a stable 
+submission record.
+AC-02 Individual ingestion Given multiple valid individual files, they can be added to the same evaluation as a ZIP batch.
+AC-03 Unsafe archive A ZIP containing path traversal or excessive expansion is rejected safely; no file is written outside the designated temporary directory.
+AC-04 Duplicate pair rule For N accepted submissions, exactly N(N-1)/2 pair records are created; no self-pair exists.
+AC-05 Symmetry Comparing A with B and B with A returns the same stored pair result.
+AC-06 Idempotent retry Retrying a completed/partially failed batch does not duplicate existing comparison records.
+AC-07 Relevance precedes similarity
+The job state machine does not begin peer similarity processing until 
+required extraction and relevance stages reach an allowed terminal 
+state.
+AC-08 Evidence traceability A displayed matched passage can be traced to the correct submission and page/offset where the source format permits.
+AC-09 Common text Configured question/boilerplate text is excluded or separately identified in overlap evidence.
+AC-10 Teacher override Teacher can edit a proposed mark, add a reason and see the final decision recorded in audit history.
+AC-11 No automatic accusation AI-writing and similarity signals alone cannot automatically publish a misconduct verdict or deduct marks.
+AC-12 Tenant isolation A user from tenant A cannot retrieve tenant B files, results, reports or object-storage keys through API or guessed identifiers.
+AC-13 Export A teacher can export the batch summary and an individual report with the same reviewed values shown in the UI.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 13
+ID Acceptance criterion
+AC-14 Deletion Deleting an evaluation removes or schedules deletion of its files and derived content according to the configured retention policy.
+12.1 Test Dataset Design
+ Exact-copy pair: same answer with minor formatting changes.
+ Near-copy pair: same sentences with small edits and reordered paragraphs.
+ Paraphrase pair: same meaning expressed with different words.
+ Common-prompt pair: shared assignment wording but otherwise independent answers.
+ Citation pair: similar quoted passage with valid citation/reference.
+ Unrelated pair: answers on different topics.
+ Short-answer pair: common simple fact or formula where similarity may be naturally high.
+ Bangla/English pair: equivalent or mixed-language answer to test multilingual handling.
+ OCR pair: scanned copy and digital original with OCR uncertainty.
+ Code pair: renamed identifiers, reordered helper functions, formatting-only changes and common starter code.
+12.2 Evaluation Metrics
+Measure precision, recall, false-positive rate and false-negative rate for similarity flags against a human-labelled test set. For 
+relevance, measure agreement with multiple human reviewers, confusion by category and confidence calibration. For OCR, 
+record character/word extraction quality and downstream effect. For AI-writing indicators, validate separately on 
+representative writing and report false positives prominently. Do not use a single overall accuracy number as the only quality 
+claim.
+13. Delivery Roadmap
+Phase Scope Exit outcome
+Phase 0 - Foundation
+Repository, SRS, architecture decisions, UI 
+direction, database ERD, local Docker 
+environment, CI skeleton.
+A documented and runnable development 
+baseline.
+Phase 1 - MVP ingestion
+Authentication, evaluation setup, question/rubric 
+input, ZIP + individual uploads, safe extraction, 
+PDF/DOCX/TXT parsing, mapping and job 
+progress.
+Teacher can create a batch and reliably see 
+extracted submissions.
+Phase 2 - Relevance + text similarity
+Question relevance, TF-IDF/cosine, 
+n-gram/fingerprints, unique pair engine, matched 
+passages, comparison matrix.
+A complete explainable text-analysis report for a 
+batch.
+Phase 3 - Grading + reports
+Rubric-based provisional marks, teacher override, 
+audit events, PDF/CSV reports and review 
+workflow.
+Teacher can approve and export a defensible 
+result.
+Phase 4 - Advanced analysis
+Semantic embeddings, MinHash/LSH 
+optimization, OCR, citation handling, optional 
+code similarity and calibrated experimental AI 
+signal.
+Advanced modules pass evaluation on labelled 
+test datasets.
+Phase 5 - SaaS hardening
+Tenant isolation, usage limits, billing/plan design if 
+required, monitoring, backups, retention, security 
+testing and production deployment.
+A secure, supportable SaaS release.
+14. Assumptions, Constraints and Open Decisions
+14.1 Initial Assumptions
+ Initial supported prose formats are PDF, DOCX and TXT. Additional formats require explicit support and tests.
+ One evaluation job represents one assignment/question set and one group of student submissions.
+ Initial comparison scope is limited to submissions in the same evaluation job.
+ Teacher-provided question text is required. Rubric/reference answer is optional but strongly recommended for reliable 
+grading.
+ Bangla and English are target languages; model support and evaluation quality must be verified before claiming parity.
+PLAGIX  |  SOFTWARE REQUIREMENTS SPECIFICATION
+PLAGIX SRS v1.0  •  Draft for implementation planning  |  Page 14
+ The first release is teacher-facing and does not require student accounts or LMS integration.
+14.2 Open Decisions to Resolve Before Production
+Decision Recommended starting point
+Maximum ZIP size / file size / file count Start with configurable limits and benchmark representative files before fixing public limits.
+Student identity mapping Filename convention + optional CSV mapping + manual correction.
+Question language and response language Allow teacher to select expected language; warn on unsupported or mixed-language cases.
+Rubric behavior when omitted Provide relevance analysis and mark estimate with low-confidence warning; do not imply full correctness grading.
+AI-writing detector provider Do not select until independently tested on relevant student writing and privacy terms reviewed.
+Code language support Start with a small, tested set (for example Python and C/C++), then add languages after parser tests.
+Data retention duration Choose after legal/privacy review and user research; support tenant- configurable deletion.
+Hosting and region Choose based on current costs, availability, data processing terms and intended users.
+15. Glossary
+Term Definition
+AST Abstract Syntax Tree: a structured representation of source code.
+Cosine similarity A measure comparing the direction of two numeric vectors.
+Embedding A numeric vector representation of text or code semantics.
+False positive A non-plagiarized or acceptable answer incorrectly flagged as suspicious.
+False negative A copied or highly similar answer that the system fails to flag.
+LSH Locality-Sensitive Hashing: a technique for retrieving likely similar items efficiently.
+MinHash A compact signature used to estimate similarity between sets/shingles.
+N-gram A contiguous sequence of N tokens or characters.
+OCR Optical Character Recognition: extracting text from scanned images/documents.
+TF-IDF Term Frequency-Inverse Document Frequency: a weighted representation of terms.
+Winnowing A fingerprint-selection algorithm used to identify shared text fragments.
+Implementation Baseline Summary
+BUILD THIS FIRST  Create the teacher-facing standalone workflow: question + optional rubric -> ZIP/individual upload -> safe 
+extraction -> text extraction -> relevance-first evaluation -> unique pairwise comparison -> explainable review dashboard -> 
+teacher-approved marks and exports.
+Do not start with an all-in-one LMS, automatic misconduct decisions, or a black-box AI detector. Prove the core workflow on a 
+labelled dataset, then expand into semantic similarity, OCR, code analysis and SaaS scale.
