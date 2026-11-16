@@ -2,8 +2,8 @@
 
 **Academic Answer Evaluation & Integrity Platform**
 
-Version: 0.1.0-planning  
-Status: Architecture & planning phase  
+Version: 0.1.0-phase-0.2  
+Status: Phase 0.2 - Docker foundation and database schema implemented  
 Last updated: 16 November 2026
 
 ---
@@ -57,9 +57,9 @@ PLAGIX is a standalone SaaS utility that helps teachers evaluate batches of stud
 
 ---
 
-## Technology Stack (Planned)
+## Technology Stack
 
-**Status: Architecture recommendations; not yet implemented.**
+**Status: Phase 0.2 - Backend foundation and database implemented. Frontend not yet started.**
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
@@ -93,7 +93,7 @@ plagix/
 │   │   ├── components/       # React components
 │   │   └── lib/             # Utilities, API client
 │   └── package.json
-├── backend/                  # FastAPI application (NOT YET CREATED)
+├── backend/                  # FastAPI application (Phase 0.2 IMPLEMENTED)
 │   ├── app/
 │   │   ├── api/             # API routes
 │   │   ├── core/            # Config, auth, database
@@ -110,7 +110,9 @@ plagix/
 │   ├── architecture/        # System design, data model, pipeline
 │   ├── decisions/           # Architecture Decision Records
 │   └── roadmap/             # Phase plans, milestones
-├── docker-compose.yml        # Local development stack (NOT YET CREATED)
+├── docker-compose.yml        # Local development stack (Phase 0.2 COMPLETED)
+├── compose.yaml              # Docker Compose v2 configuration
+├── .env.example              # Environment variables template
 ├── .github/workflows/        # CI configuration (NOT YET CREATED)
 └── README.md                # This file
 ```
@@ -151,12 +153,28 @@ plagix/
 
 ## Development Status
 
-**Phase 0 - Foundation: IN PROGRESS**
+**Phase 0.2 - Docker Foundation & Database: COMPLETED**
 
 - [x] SRS document created and extracted to text
 - [x] README.md drafted
-- [ ] Requirements traceability matrix
-- [ ] Architecture diagrams and system overview
+- [x] Requirements traceability matrix
+- [x] Architecture diagrams and system overview
+- [x] Data model with ERD
+- [x] Processing pipeline design
+- [x] Technology stack ADR
+- [x] Phase plan and milestones
+- [x] Open questions documented
+- [x] Docker Compose environment (PostgreSQL 16, Redis 7, FastAPI)
+- [x] Backend directory structure and core application
+- [x] Database configuration and connection pooling
+- [x] SQLAlchemy 2.x models for all 14 tables
+- [x] Alembic migrations (5 migration files)
+- [x] Canonical pair constraint (CHECK and UNIQUE)
+- [x] Health endpoints (/health/live, /health/ready)
+- [x] Integration tests for constraints
+- [x] Local setup documentation
+
+**Phase 1 - MVP Ingestion: NOT STARTED**
 - [ ] Data model with ERD
 - [ ] Processing pipeline design
 - [ ] Technology stack ADR
@@ -168,6 +186,76 @@ plagix/
 - [ ] Authentication scaffold
 
 **Nothing has been implemented yet.** This README describes the planned architecture based on the SRS requirements.
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Docker Desktop with Compose v2 (for Windows 11)
+- Git
+
+### Quick Start
+
+1. **Clone the repository:**
+   ```powershell
+   git clone <repository-url>
+   cd Plagix
+   ```
+
+2. **Create environment file:**
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+3. **Start the development stack:**
+   ```powershell
+   docker compose up --build -d
+   ```
+
+4. **Run database migrations:**
+   ```powershell
+   docker compose exec api alembic upgrade head
+   ```
+
+5. **Verify health:**
+   - API Live: http://localhost:8000/health/live
+   - API Ready: http://localhost:8000/health/ready
+   - API Docs: http://localhost:8000/docs
+
+6. **Run tests:**
+   ```powershell
+   docker compose exec api pytest
+   ```
+
+For detailed setup instructions, see [docs/development/local-setup.md](docs/development/local-setup.md).
+
+---
+
+## Database Schema
+
+The database consists of 14 tables implementing the approved data model:
+
+1. **tenants** - Multi-tenant workspace boundaries
+2. **users** - Teacher and admin accounts
+3. **evaluations** - Evaluation jobs with questions
+4. **questions** - Questions and sub-questions
+5. **rubric_criteria** - Rubric criteria for grading
+6. **submissions** - Student answer files
+7. **submission_chunks** - Extracted text with page/offset
+8. **relevance_results** - Answer relevance analysis
+9. **comparisons** - Pairwise similarity (with canonical pair constraint)
+10. **matched_passages** - Similar text passages evidence
+11. **code_analysis_results** - Code similarity (Phase 4)
+12. **grading_results** - Provisional and final marks
+13. **processing_jobs** - Background job tracking
+14. **audit_logs** - Immutable audit trail
+
+**Critical Constraints:**
+- `CHECK (submission_a_id < submission_b_id)` on comparisons table
+- `UNIQUE (evaluation_id, submission_a_id, submission_b_id)` on comparisons table
+
+See [docs/architecture/data-model.md](docs/architecture/data-model.md) for complete schema.
 
 ---
 
