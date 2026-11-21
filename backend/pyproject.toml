@@ -17,6 +17,7 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "python-jose[cryptography]>=3.3.0",
     "bcrypt>=4.0.0",
+    "email-validator>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -24,26 +25,11 @@ dev = [
     "pytest>=7.4.3",
     "pytest-asyncio>=0.21.1",
     "httpx>=0.25.2",
-    "ruff>=0.1.6",
-    "mypy>=1.7.1",
 ]
 
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
-
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-select = ["E", "F", "I", "N", "W"]
-ignore = ["E501"]
-
-[tool.mypy]
-python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
