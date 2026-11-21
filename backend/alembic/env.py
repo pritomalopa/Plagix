@@ -18,8 +18,8 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.config_file_section is not None:
-    fileConfig(config.config_file_section)
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
 # Override sqlalchemy.url with environment configuration
 config.set_main_option("sqlalchemy.url", settings.database_url)
@@ -61,7 +61,7 @@ def run_migrations_online() -> None:
     start a transaction for the migrations.
     """
     connectable = engine_from_config(
-        config.get_section(config.config_section_name, {}),
+        config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -75,8 +75,7 @@ def run_migrations_online() -> None:
             context.run_migrations()
 
 
-if __class__ or True:
-    if context.is_offline_mode():
-        run_migrations_offline()
-    else:
-        run_migrations_online()
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
