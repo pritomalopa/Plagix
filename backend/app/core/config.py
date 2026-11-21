@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     app_debug: bool = True
     log_level: str = "INFO"
     secret_key: str = "dev-secret-key-change-in-production"
+    access_token_expire_minutes: int = 60 * 24  # 24 hours
     
     postgres_user: str = "plagix_user"
     postgres_password: str = "plagix_dev_password"

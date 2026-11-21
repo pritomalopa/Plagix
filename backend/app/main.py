@@ -5,6 +5,7 @@ import redis
 
 from app.core.config import settings
 from app.db.session import get_db
+from app.api.auth import router as auth_router
 
 app = FastAPI(
     title="PLAGIX API",
@@ -13,6 +14,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Include Routers
+app.include_router(auth_router, prefix="/api")
 
 
 @app.get("/health/live", tags=["Health"])
