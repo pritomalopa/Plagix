@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.api.auth import router as auth_router
 from app.api.evaluations import router as evaluations_router
+from app.api.submissions import router as submissions_router
 
 app = FastAPI(
     title="PLAGIX API",
@@ -19,6 +20,7 @@ app = FastAPI(
 # Include Routers
 app.include_router(auth_router, prefix="/api")
 app.include_router(evaluations_router, prefix="/api")
+app.include_router(submissions_router, prefix="/api")
 
 
 @app.get("/health/live", tags=["Health"])

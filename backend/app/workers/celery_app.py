@@ -5,10 +5,12 @@ celery_app = Celery(
     "plagix_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.workers.tasks"]
+    include=["app.workers.tasks", "app.workers.ingestion_tasks"]
 )
 
 celery_app.conf.update(
+    broker_url=settings.redis_url,
+    result_backend=settings.redis_url,
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",

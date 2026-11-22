@@ -12,8 +12,8 @@ ENV PYTHONUNBUFFERED=1 \
 # Copy dependency files
 COPY pyproject.toml ./
 
-# Install Python dependencies using precompiled binary wheels including email-validator
-RUN pip install --no-cache-dir fastapi uvicorn sqlalchemy psycopg[binary] alembic pydantic pydantic-settings python-dotenv redis celery passlib python-jose[cryptography] bcrypt email-validator pytest pytest-asyncio httpx
+# Install Python dependencies using precompiled binary wheels including python-multipart
+RUN pip install --no-cache-dir fastapi uvicorn sqlalchemy psycopg[binary] alembic pydantic pydantic-settings python-dotenv redis celery passlib python-jose[cryptography] bcrypt email-validator pypdf python-docx python-multipart pytest pytest-asyncio httpx
 
 # Copy application code
 COPY . .

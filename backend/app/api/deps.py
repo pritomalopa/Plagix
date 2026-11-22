@@ -6,6 +6,7 @@ from app.db.session import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
 from app.models.tenant import Tenant
+from app.models.evaluation import Evaluation
 
 
 def get_token_from_cookie_or_header(request: Request) -> str:
@@ -88,3 +89,19 @@ def verify_tenant_access(
             detail="Access forbidden: cross-tenant access is prohibited"
         )
     return current_user
+
+
+def verify_evaluation_ownership(eval_id: UUID, current_user: User, db: Session) -> Evaluation:
+    """Helper to verify evaluation exists and belongs to current user's tenant."""
+    evaluation = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
+    if not evaluation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evaluation not found"
+        )
+    if evaluation.tenant_id != current_user.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: evaluation belongs to another tenant"
+        )
+    return evaluation
