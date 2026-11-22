@@ -1,102 +1,93 @@
 services:
-  # PostgreSQL Database
   db:
     image: postgres:16-alpine
     container_name: plagix_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-plagix_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-plagix_dev_password}
-      POSTGRES_DB: ${POSTGRES_DB:-plagix_db}
+      POSTGRES_USER: plagix_user
+      POSTGRES_PASSWORD: plagix_dev_password
+      POSTGRES_DB: plagix_db
     ports:
-      - "127.0.0.1:5432:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-plagix_user} -d ${POSTGRES_DB:-plagix_db}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U plagix_user -d plagix_db"]
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s
-    networks:
-      - plagix_network
 
-  # Redis Cache and Queue
   redis:
     image: redis:7-alpine
     container_name: plagix_redis
     restart: unless-stopped
     ports:
-      - "127.0.0.1:6379:6379"
+      - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
+      interval: 5s
+      timeout: 5s
       retries: 5
-      start_period: 5s
-    networks:
-      - plagix_network
 
-  # FastAPI Backend
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: plagix_api
     restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-plagix_user}:${POSTGRES_PASSWORD:-plagix_dev_password}@db:5432/${POSTGRES_DB:-plagix_db}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      APP_ENV: ${APP_ENV:-development}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://plagix_user:plagix_dev_password@db:5432/plagix_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=supersecretdevkeyforplagix123456789
+      - APP_ENV=development
     volumes:
+      - ./backend/storage:/app/storage
       - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - plagix_network
 
-  # Celery Background Worker
   worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: plagix_worker
     restart: unless-stopped
-    command: ["celery", "-A", "app.workers.celery_app.celery_app", "worker", "--loglevel=INFO"]
+    command: celery -A app.workers.celery_app worker --loglevel=info
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-plagix_user}:${POSTGRES_PASSWORD:-plagix_dev_password}@db:5432/${POSTGRES_DB:-plagix_db}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      APP_ENV: ${APP_ENV:-development}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      - DATABASE_URL=postgresql+psycopg://plagix_user:plagix_dev_password@db:5432/plagix_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=supersecretdevkeyforplagix123456789
+      - APP_ENV=development
     volumes:
+      - ./backend/storage:/app/storage
       - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - plagix_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: plagix_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-
-networks:
-  plagix_network:
-    driver: bridge
