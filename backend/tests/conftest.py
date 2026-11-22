@@ -9,14 +9,12 @@ from app.db.base import Base
 from app.db.session import get_db
 import app.db.session
 from app.workers.celery_app import celery_app
+from celery.app.task import Task
 
-# Configure Celery for in-memory synchronous execution in tests
-celery_app.conf.update(
-    broker_url="memory://",
-    result_backend="memory://",
-    task_always_eager=True,
-    task_eager_propagates=True,
-)
+# Keep original production celery configuration intact for test_worker.py,
+# but make .delay() and .apply_async() execute synchronously during tests.
+Task.delay = lambda self, *args, **kwargs: self.apply(args=args, kwargs=kwargs)
+Task.apply_async = lambda self, args=None, kwargs=None, **options: self.apply(args=args or (), kwargs=kwargs or {})
 
 # Use SQLite in-memory for testing without requiring external PostgreSQL service
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
