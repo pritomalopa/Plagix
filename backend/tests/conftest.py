@@ -10,8 +10,10 @@ from app.db.session import get_db
 import app.db.session
 from app.workers.celery_app import celery_app
 
-# Configure Celery for synchronous execution in tests
+# Configure Celery for in-memory synchronous execution in tests
 celery_app.conf.update(
+    broker_url="memory://",
+    result_backend="memory://",
     task_always_eager=True,
     task_eager_propagates=True,
 )

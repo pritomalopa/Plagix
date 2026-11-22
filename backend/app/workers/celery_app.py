@@ -8,7 +8,8 @@ celery_app = Celery(
     include=[
         "app.workers.tasks",
         "app.workers.ingestion_tasks",
-        "app.workers.similarity_tasks"
+        "app.workers.similarity_tasks",
+        "app.workers.relevance_tasks"
     ]
 )
 
