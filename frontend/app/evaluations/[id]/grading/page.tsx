@@ -74,6 +74,10 @@ export default function GradingPage() {
     }
   }
 
+  const handleExportCSV = () => {
+    window.open(`/api/evaluations/${id}/reports/csv`, '_blank')
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm">
@@ -84,13 +88,21 @@ export default function GradingPage() {
           <span className="text-slate-300">|</span>
           <h1 className="text-lg font-bold text-slate-900">AI Grading & Teacher Review</h1>
         </div>
-        <button
-          onClick={handleStartGrading}
-          disabled={grading}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50"
-        >
-          {grading ? 'Calculating Grades...' : '✨ Run AI Grading'}
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg text-sm shadow-sm hover:bg-slate-50"
+          >
+            📥 Export CSV Gradebook
+          </button>
+          <button
+            onClick={handleStartGrading}
+            disabled={grading}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50"
+          >
+            {grading ? 'Calculating Grades...' : '✨ Run AI Grading'}
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-8 py-8 space-y-8">

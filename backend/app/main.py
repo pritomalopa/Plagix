@@ -11,6 +11,7 @@ from app.api.submissions import router as submissions_router
 from app.api.similarity import router as similarity_router
 from app.api.relevance import router as relevance_router
 from app.api.grading import router as grading_router
+from app.api.reports import router as reports_router
 
 app = FastAPI(
     title="PLAGIX API",
@@ -27,6 +28,7 @@ app.include_router(submissions_router, prefix="/api")
 app.include_router(similarity_router, prefix="/api")
 app.include_router(relevance_router, prefix="/api")
 app.include_router(grading_router, prefix="/api")
+app.include_router(reports_router, prefix="/api")
 
 
 @app.get("/health/live", tags=["Health"])
