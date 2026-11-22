@@ -5,7 +5,11 @@ celery_app = Celery(
     "plagix_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.workers.tasks", "app.workers.ingestion_tasks"]
+    include=[
+        "app.workers.tasks",
+        "app.workers.ingestion_tasks",
+        "app.workers.similarity_tasks"
+    ]
 )
 
 celery_app.conf.update(
