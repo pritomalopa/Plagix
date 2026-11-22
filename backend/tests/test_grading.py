@@ -114,7 +114,7 @@ def helper_setup_eval_with_rubric(name: str, email: str, texts: dict) -> tuple[s
     return eval_id_str, sub_map
 
 
-def test_grading_pipeline_and_teacher_override():
+def test_grading_pipeline_and_teacher_review_workflow():
     texts = {
         "student_excellent": "Neural networks are composed of input, hidden, and output layers connected by weights and biases. Backpropagation optimizes these weights using gradient descent and the chain rule of calculus.",
         "student_partial": "Neural networks have layers and weights. Backpropagation helps train the model.",
@@ -132,36 +132,52 @@ def test_grading_pipeline_and_teacher_override():
     # 2. Run Celery grading task synchronously
     run_evaluation_grading_task(eval_id)
 
-    # 3. Retrieve grading results with batch statistics
+    # 3. Retrieve grading results with batch statistics and review progress
     results_res = client.get(f"/api/evaluations/{eval_id}/grading-results")
     assert results_res.status_code == 200
     data = results_res.json()
     assert data["total"] == 3
+    assert data["review_progress"]["total_submissions"] == 3
     assert data["batch_statistics"]["count"] == 3
-    assert data["batch_statistics"]["mean_score"] > 0
 
-    # 4. Test teacher override on student_partial submission
+    # 4. Teacher updates review, feedback, and final score for student_partial
     sub_id = sub_map["student_partial"]
-    override_payload = {
+    update_payload = {
         "teacher_final_score": 75.0,
-        "override_reason": "Student correctly understood foundational concepts but missed calculus details.",
-        "criterion_scores_override": {
-            "adjustment_note": "Manually reviewed by instructor."
-        }
+        "override_reason": "Good foundational understanding demonstrated.",
+        "teacher_feedback": "Excellent effort, but need more details on gradient descent mathematical formulas."
     }
-    override_res = client.patch(f"/api/evaluations/submissions/{sub_id}/grade", json=override_payload)
-    assert override_res.status_code == 200
-    override_data = override_res.json()
-    assert override_data["teacher_final_score"] == 75.0
-    assert override_data["status"] == "approved"
-    assert override_data["override_reason"] is not None
+    update_res = client.patch(f"/api/evaluations/submissions/{sub_id}/grade", json=update_payload)
+    assert update_res.status_code == 200
+    update_data = update_res.json()
+    assert update_data["teacher_final_score"] == 75.0
+    assert update_data["status"] == "reviewed"
 
-    # 5. Retrieve single submission grade detail
-    detail_res = client.get(f"/api/evaluations/submissions/{sub_id}/grade")
-    assert detail_res.status_code == 200
-    detail_data = detail_res.json()
-    assert detail_data["status"] == "approved"
-    assert detail_data["teacher_final_score"] == 75.0
+    # 5. Finalize grade
+    finalize_res = client.post(f"/api/evaluations/submissions/{sub_id}/finalize", json={"confirm_finalization": True})
+    assert finalize_res.status_code == 200
+    finalize_data = finalize_res.json()
+    assert finalize_data["status"] == "finalized"
+
+    # 6. Attempt to modify finalized grade (should fail with 400)
+    fail_res = client.patch(f"/api/evaluations/submissions/{sub_id}/grade", json={"teacher_final_score": 80.0})
+    assert fail_res.status_code == 400
+
+    # 7. Reopen finalized grade
+    reopen_res = client.post(f"/api/evaluations/submissions/{sub_id}/reopen", json={"reopen_reason": "Re-evaluating score per student appeal."})
+    assert reopen_res.status_code == 200
+    reopen_data = reopen_res.json()
+    assert reopen_data["status"] == "reviewed"
+
+    # 8. Retrieve grading audit trail
+    audit_res = client.get(f"/api/evaluations/{eval_id}/grading-audit")
+    assert audit_res.status_code == 200
+    audit_data = audit_res.json()
+    assert len(audit_data) >= 3
+    actions = [log["action"] for log in audit_data]
+    assert "finalize_grade" in actions
+    assert "reopen_grade" in actions
+    assert "update_grade_review" in actions
 
 
 def test_cross_tenant_grading_access():
@@ -189,6 +205,6 @@ def test_cross_tenant_grading_access():
 
     client.cookies.set("access_token", f"Bearer {token_b}")
 
-    # Teacher B tries to grade or access Evaluation A -> 403 or 404
+    # Teacher B tries to access grading results of Evaluation A -> 403 or 404
     res = client.get(f"/api/evaluations/{eval_a_id}/grading-results")
     assert res.status_code in (403, 404)
