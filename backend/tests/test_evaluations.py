@@ -112,6 +112,56 @@ def test_evaluation_crud_flow():
     assert get_deleted.status_code == 404
 
 
+def test_rubric_criterion_deletion_persists():
+    """
+    Regression test: verify that deleting a rubric criterion actually removes it
+    from the database and that a subsequent GET request confirms its absence,
+    while leaving other criteria intact.
+    """
+    token = helper_register_user("Prof. Charlie", f"charlie_{uuid4()}@test.edu")
+    client.cookies.set("access_token", token)
+
+    eval_payload = {
+        "title": "Rubric Deletion Test Exam",
+        "language": "en",
+        "max_marks": 100,
+        "questions": [
+            {
+                "order": 1,
+                "prompt": "Test prompt",
+                "rubric_criteria": [
+                    {"criterion": "Criterion One", "max_points": 40, "order": 1},
+                    {"criterion": "Criterion Two", "max_points": 60, "order": 2}
+                ]
+            }
+        ]
+    }
+
+    create_res = client.post("/api/evaluations", json=eval_payload)
+    assert create_res.status_code == 201
+    eval_data = create_res.json()
+    eval_id = eval_data["id"]
+    q_id = eval_data["questions"][0]["id"]
+    criteria = eval_data["questions"][0]["rubric_criteria"]
+    assert len(criteria) == 2
+    rc_id_to_delete = criteria[0]["id"]
+    rc_id_to_keep = criteria[1]["id"]
+
+    # Delete first criterion
+    del_res = client.delete(f"/api/evaluations/{eval_id}/questions/{q_id}/rubric/{rc_id_to_delete}")
+    assert del_res.status_code == 204
+
+    # Fetch evaluation in a separate GET request
+    get_res = client.get(f"/api/evaluations/{eval_id}")
+    assert get_res.status_code == 200
+    updated_criteria = get_res.json()["questions"][0]["rubric_criteria"]
+
+    # Verify criterion is absent and other criterion remains intact
+    assert len(updated_criteria) == 1
+    assert updated_criteria[0]["id"] == rc_id_to_keep
+    assert updated_criteria[0]["criterion"] == "Criterion Two"
+
+
 def test_cross_tenant_evaluation_isolation():
     # Tenant A
     token_a = helper_register_user("Teacher A", f"prof_a_{uuid4()}@test.edu")

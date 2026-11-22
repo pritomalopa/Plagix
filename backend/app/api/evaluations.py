@@ -180,6 +180,7 @@ def delete_evaluation(
     evaluation = verify_evaluation_ownership(evaluation_id, current_user, db)
     db.delete(evaluation)
     db.commit()
+    db.expire_all()
     return None
 
 
@@ -286,6 +287,7 @@ def delete_question(
         
     db.delete(question)
     db.commit()
+    db.expire_all()
     return None
 
 
@@ -382,4 +384,5 @@ def delete_rubric_criterion(
         
     db.delete(criterion)
     db.commit()
+    db.expire_all()
     return None
